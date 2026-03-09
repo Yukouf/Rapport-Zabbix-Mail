@@ -1,10 +1,17 @@
 # Automatisation de rapports Zabbix par email
 
-Guide complet pour mettre en place un système de rapports hebdomadaires automatisés depuis Zabbix, avec génération Excel et envoi par email.
+Script Python qui se connecte à l'API Zabbix, génère un rapport Excel formaté et l'envoie par email automatiquement chaque semaine.
 
-## Contexte
+## Fonctionnalités
 
-Zabbix est un outil de supervision réseau et système. Par défaut, il envoie des alertes unitaires par email, mais ne propose pas de rapport de synthèse hebdomadaire. Ce projet automatise la génération d'un rapport Excel complet (problèmes en cours, inventaire des hôtes, statistiques de disponibilité) et son envoi par email chaque semaine.
+- **Filtrage intelligent** : exclut le bruit (alertes "Information", changements de vitesse Ethernet, mises à jour OS, services Google Updater)
+- **Catégorisation** : problèmes regroupés par type (Serveurs, Équipements Réseau, Postes de travail, Périphériques)
+- **Résumé exécutif** : métriques clés en haut du rapport (hôtes disponibles/down, alertes critiques, alertes filtrées)
+- **Points d'attention** : mise en évidence des alertes Haut/Désastre
+- **Design moderne** : police Calibri, lignes alternées, badges de sévérité colorés, onglets colorés
+- **3 onglets** : Rapport Hebdo, Inventaire Hôtes, Alertes Filtrées
+- **Envoi automatique** par email via SMTP avec le rapport Excel en pièce jointe
+- **Planification cron** : envoi chaque lundi à 7h00
 
 ## Architecture
 
@@ -53,125 +60,110 @@ Il est recommandé de créer un compte séparé plutôt que d'utiliser le compte
 mkdir -p /chemin/vers/rapports_zabbix
 ```
 
-Placer le script `zabbix_rapport_auto.py` dans ce dossier (voir section Script ci-dessous).
+Placer le script `zabbix_rapport_auto.py` dans ce dossier.
 
 ### 4. Configurer le script
 
 Modifier les variables de configuration en haut du script :
 
 ```python
-# Connexion Zabbix
 ZABBIX_URL = "https://votre-zabbix.example.com/api_jsonrpc.php"
 ZABBIX_USER = "rapport-auto"
 ZABBIX_PASS = "VotreMotDePasse"
 
-# Configuration SMTP
 SMTP_SERVER = "smtp.votre-provider.com"
 SMTP_PORT = 587
 SMTP_USER = "votre_compte_smtp"
 SMTP_PASS = "votre_mot_de_passe_smtp"
 SMTP_FROM = "Zabbix Alertes <alertes@votre-domaine.com>"
 
-# Destinataires
-EMAIL_TO = ["admin@votre-domaine.com"]
-
-# Dossier de sauvegarde
-REPORT_DIR = "/chemin/vers/rapports_zabbix"
+EMAIL_TO = ["admin@votre-domaine.com", "equipe@votre-domaine.com"]
 ```
 
-### 5. Tester
+### 5. Personnaliser le filtrage
+
+Le script exclut automatiquement les alertes peu pertinentes. Vous pouvez ajuster les patterns dans la section `EXCLUDED_PATTERNS` :
+
+```python
+EXCLUDED_PATTERNS = [
+    r"Ethernet has changed to lower speed",
+    r"Operating system description has changed",
+    r"GoogleUpdater",
+    r"Number of installed packages has been changed",
+]
+
+# Sévérités exclues (0=Non classé, 1=Information)
+EXCLUDED_SEVERITIES = ["0", "1"]
+```
+
+Les alertes filtrées restent visibles dans le 3ème onglet "Alertes filtrées" du rapport.
+
+### 6. Personnaliser la catégorisation
+
+Les hôtes sont automatiquement classés par type. Ajustez les mots-clés si nécessaire :
+
+```python
+NETWORK_KEYWORDS = ["aruba", "hp-2530", "switch", "cisco"]
+NETWORK_AGENTS = ["2"]  # SNMP = équipement réseau
+```
+
+### 7. Tester
 
 ```bash
 # Tester l'envoi d'email (sans rapport)
-python3 /chemin/vers/rapports_zabbix/zabbix_rapport_auto.py --test-email
+python3 zabbix_rapport_auto.py --test-email
 
 # Générer et envoyer un rapport complet
-python3 /chemin/vers/rapports_zabbix/zabbix_rapport_auto.py
+python3 zabbix_rapport_auto.py
 
 # Générer sans envoyer par email
-python3 /chemin/vers/rapports_zabbix/zabbix_rapport_auto.py --no-email
+python3 zabbix_rapport_auto.py --no-email
 ```
 
-### 6. Automatiser avec cron
+### 8. Automatiser avec cron
 
 ```bash
-# Ouvrir l'éditeur cron
-crontab -e
+# Ajouter au cron (chaque lundi à 7h00)
+(crontab -l 2>/dev/null; echo "0 7 * * 1 /usr/bin/python3 /chemin/vers/rapports_zabbix/zabbix_rapport_auto.py >> /chemin/vers/rapports_zabbix/cron.log 2>&1") | crontab -
 
-# Ajouter cette ligne pour un envoi chaque lundi à 7h00
-0 7 * * 1 /usr/bin/python3 /chemin/vers/rapports_zabbix/zabbix_rapport_auto.py >> /chemin/vers/rapports_zabbix/cron.log 2>&1
-```
-
-Vérifier :
-
-```bash
+# Vérifier
 crontab -l
 ```
 
-## Le script
+## Contenu du rapport
 
-### Fonctionnement
+### Onglet "Rapport Hebdo"
 
-Le script effectue les opérations suivantes dans l'ordre :
+- **Métriques** : hôtes total, disponibles, non disponibles, alertes pertinentes, alertes critiques, alertes filtrées (affichage style dashboard avec gros chiffres)
+- **Points d'attention** : alertes Haut/Désastre en évidence
+- **Serveurs** : problèmes sur les serveurs (disques pleins, agents down, services arrêtés)
+- **Équipements réseau** : problèmes sur switches et routeurs (ping down, interfaces down)
+- **Postes de travail** : problèmes sur les postes Windows/Linux
+- **Périphériques** : imprimantes, etc.
 
-1. **Authentification** via l'API JSON-RPC de Zabbix (Bearer token pour Zabbix 7.x)
-2. **Récupération des hôtes** avec leurs interfaces, IP et groupes
-3. **Calcul de la disponibilité** (disponible / non disponible / inconnu)
-4. **Récupération des problèmes** en cours non supprimés
-5. **Résolution des triggers** pour associer chaque problème à son hôte
-6. **Génération du rapport Excel** avec deux onglets :
-   - **Rapport Hebdo** : résumé du parc, compteurs par sévérité, tableau des problèmes
-   - **Inventaire Hôtes** : liste complète avec IP, type d'agent, état et disponibilité
-7. **Envoi par email** avec le fichier Excel en pièce jointe
+Chaque section a sa propre couleur et les problèmes sont triés par sévérité (critiques en premier).
 
-### Particularités Zabbix 7.x
+### Onglet "Inventaire Hôtes"
 
-L'API de Zabbix 7.x a changé le mode d'authentification. L'ancien paramètre `auth` dans le body JSON n'est plus accepté. Il faut utiliser un header HTTP `Authorization: Bearer <token>` :
+Liste complète des hôtes supervisés avec adresse IP, type d'agent (ZBX/SNMP), groupes, état, disponibilité et catégorie. Les hôtes non disponibles sont surlignés en rouge.
+
+### Onglet "Alertes filtrées"
+
+Toutes les alertes exclues du rapport principal, avec la raison du filtrage. Permet de vérifier qu'aucune alerte importante n'a été masquée.
+
+## Particularités Zabbix 7.x
+
+L'API Zabbix 7.x utilise l'authentification par header HTTP au lieu du paramètre `auth` dans le body :
 
 ```python
-def zabbix_api(method, params, auth=None):
-    payload = {"jsonrpc": "2.0", "method": method, "params": params, "id": 1}
-    headers = {"Content-Type": "application/json-rpc"}
-    if auth:
-        headers["Authorization"] = f"Bearer {auth}"
-    req = urllib.request.Request(ZABBIX_URL, data=json.dumps(payload).encode(), headers=headers)
-    # ...
+headers["Authorization"] = f"Bearer {auth}"
 ```
 
-De même, l'API `problem.get` n'accepte plus `sortfield: ["severity", "clock"]`. Il faut utiliser `sortfield: "eventid"`.
+L'endpoint `problem.get` n'accepte plus `sortfield: ["severity", "clock"]`, il faut utiliser `sortfield: "eventid"`.
 
-### Contenu du rapport Excel
+## Accéder à Zabbix derrière un reverse proxy
 
-**Onglet "Rapport Hebdo"** :
-- Résumé du parc (hôtes total, disponibles, non disponibles, inconnus)
-- Compteurs par sévérité (Désastre, Haut, Moyen, Avertissement, Information)
-- Tableau détaillé des problèmes avec : date, hôte, sévérité, description, durée, statut d'acquittement, tags
-- Code couleur par sévérité (rouge pour Désastre, orange pour Haut, etc.)
-- Mise en évidence des problèmes Haut/Désastre non acquittés
-
-**Onglet "Inventaire Hôtes"** :
-- Liste de tous les hôtes supervisés
-- Adresse IP, type d'agent (ZBX/SNMP), groupes, état, disponibilité
-- Hôtes non disponibles surlignés en rouge
-
-## Retrouver l'accès à Zabbix derrière un reverse proxy
-
-Si Zabbix est configuré derrière un reverse proxy Apache avec des virtual hosts, l'accès par IP ne fonctionnera pas (il tombera sur le mauvais service). Il faut utiliser le nom de domaine configuré dans le `ServerName` du virtual host.
-
-### Diagnostic
-
-```bash
-# Voir les virtual hosts actifs
-ls -la /etc/apache2/sites-enabled/
-cat /etc/apache2/sites-enabled/*
-
-# Chercher les ServerName
-grep -r "ServerName" /etc/apache2/sites-enabled/
-```
-
-### Solution
-
-Ajouter une entrée dans le fichier hosts de la machine client :
+Si Zabbix est configuré avec des virtual hosts Apache, l'accès par IP ne fonctionnera pas. Il faut ajouter une entrée dans le fichier hosts :
 
 **Windows** (`C:\Windows\System32\drivers\etc\hosts`) :
 ```
@@ -183,41 +175,30 @@ Ajouter une entrée dans le fichier hosts de la machine client :
 192.168.x.x    zabbix.votre-domaine.local
 ```
 
-Puis accéder via `https://zabbix.votre-domaine.local`.
-
 ## Résoudre un Zabbix Server bloqué
 
-Si le service Zabbix est en état `deactivating (stop-sigterm)` depuis longtemps :
+Si le service est en état `deactivating (stop-sigterm)` :
 
 ```bash
-# Vérifier l'état
-systemctl status zabbix-server
-
-# Forcer l'arrêt
 sudo systemctl kill -s SIGKILL zabbix-server
-
-# Redémarrer
 sudo systemctl start zabbix-server
-
-# Vérifier
-systemctl status zabbix-server
 ```
 
-## Récupérer la configuration SMTP de Zabbix
+## Récupérer la configuration SMTP existante de Zabbix
 
-Si Zabbix envoie déjà des alertes par email, la configuration SMTP est stockée dans la base de données :
+Si Zabbix envoie déjà des alertes, la config SMTP est dans la base :
 
 ```bash
-mysql -u zabbix -p<password> zabbix -e \
+mysql -u zabbix -p zabbix -e \
   "SELECT name, smtp_server, smtp_port, smtp_email, username FROM media_type WHERE type=0;"
 ```
 
-## Structure du projet
+## Structure
 
 ```
 rapports_zabbix/
-├── zabbix_rapport_auto.py    # Script principal
-├── cron.log                  # Logs d'exécution du cron
+├── zabbix_rapport_auto.py          # Script principal
+├── cron.log                        # Logs d'exécution
 └── rapport_zabbix_YYYY-MM-DD.xlsx  # Rapports générés
 ```
 
@@ -226,11 +207,12 @@ rapports_zabbix/
 | Problème | Solution |
 |----------|----------|
 | `ModuleNotFoundError: openpyxl` | `pip3 install openpyxl --break-system-packages` |
-| `email.mime.base64` not found | Corriger l'import : `from email.mime.base import MIMEBase` |
+| `email.mime.base64` not found | Corriger : `from email.mime.base import MIMEBase` |
 | `Invalid parameter "auth"` | Utiliser le header `Authorization: Bearer` (Zabbix 7.x) |
-| `Invalid parameter "/sortfield/1"` | Utiliser `"sortfield": "eventid"` au lieu d'un tableau |
-| Rapport non envoyé par cron | Vérifier `cat /chemin/rapports_zabbix/cron.log` |
-| Accès web tombe sur Grafana | Utiliser le ServerName au lieu de l'IP (virtual host) |
+| `Invalid parameter "/sortfield/1"` | Utiliser `"sortfield": "eventid"` |
+| Rapport non envoyé par cron | `cat /chemin/rapports_zabbix/cron.log` |
+| Accès web tombe sur Grafana | Utiliser le ServerName au lieu de l'IP |
+| Trop d'alertes inutiles | Ajouter des patterns dans `EXCLUDED_PATTERNS` |
 
 ## Licence
 
