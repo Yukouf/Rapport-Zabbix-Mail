@@ -31,6 +31,7 @@ Zabbix envoie des **alertes unitaires** par email quand quelque chose ne va pas.
 | 📂 **Catégorisation** | Problèmes regroupés : Serveurs, Réseau, Postes, Périphériques |
 | 📈 **Dashboard exécutif** | Métriques clés en haut : hôtes up/down, alertes critiques, alertes filtrées |
 | 🚨 **Points d'attention** | Alertes Haut/Désastre mises en évidence en rouge |
+| 💡 **Recommandations** | Chaque problème est accompagné d'une explication et des commandes à exécuter |
 | 🎨 **Design soigné** | Lignes alternées, badges de sévérité, onglets colorés |
 | 📧 **Envoi automatique** | SMTP avec TLS, pièce jointe Excel |
 | ⏰ **Planification cron** | Chaque lundi 7h (personnalisable) |
@@ -43,7 +44,7 @@ Le fichier Excel généré contient **3 onglets** :
 
 ### Onglet 1 — Rapport Hebdo
 
-Métriques du parc en haut (total, disponibles, down, alertes, critiques, filtrées), puis les problèmes classés par catégorie avec codes couleur de sévérité.
+Métriques du parc en haut (total, disponibles, down, alertes, critiques, filtrées), puis les problèmes classés par catégorie avec codes couleur de sévérité. Chaque problème est accompagné d'une **recommandation** qui explique en français simple ce que ça veut dire et quoi faire (commandes SSH/RDP incluses).
 
 **Catégories :**
 - 🔵 **Serveurs** — Disques pleins, agents down, services arrêtés
@@ -161,6 +162,23 @@ EMAIL_TO = [
     "equipe-it@domaine.com",
 ]
 ```
+
+### Recommandations
+
+Le script associe automatiquement une recommandation à chaque type de problème. Ajoutez vos propres règles :
+
+```python
+RECOMMENDATIONS = [
+    (r"Space is critically low.*used > 90%", "Disque plein. Commandes : df -h puis du -sh /var/log/*"),
+    (r"Zabbix agent is not available", "Agent down. Ping, puis SSH/RDP, puis relancer le service."),
+    (r"Unavailable by ICMP ping", "Equipement injoignable. Vérification physique nécessaire."),
+    (r"WinDefend.*is not running", "SECURITE - Antivirus arrêté ! Relancer via PowerShell."),
+    (r"Toner Empty", "Toner vide. Remplacer la cartouche."),
+    # Ajouter vos règles : (r"pattern regex", "recommandation")
+]
+```
+
+Chaque règle est un couple `(regex, texte)`. Le premier pattern qui matche le nom du problème est utilisé.
 
 ---
 
