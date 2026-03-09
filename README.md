@@ -46,6 +46,8 @@ Le fichier Excel généré contient **3 onglets** :
 
 Métriques du parc en haut (total, disponibles, down, alertes, critiques, filtrées), puis les problèmes classés par catégorie avec codes couleur de sévérité. Chaque problème est accompagné d'une **recommandation** qui explique en français simple ce que ça veut dire et quoi faire (commandes SSH/RDP incluses).
 
+![Rapport Hebdo](screenshots/rapport_hebdo.png)
+
 **Catégories :**
 - 🔵 **Serveurs** — Disques pleins, agents down, services arrêtés
 - 🟠 **Équipements réseau** — Switches down, interfaces down, ping perdu
@@ -56,9 +58,13 @@ Métriques du parc en haut (total, disponibles, down, alertes, critiques, filtr�
 
 Liste complète des machines supervisées avec IP, agent, état, disponibilité et catégorie. Hôtes down surlignés en rouge.
 
+![Inventaire Hôtes](screenshots/inventaire_hotes.png)
+
 ### Onglet 3 — Alertes filtrées
 
 Tout ce qui a été exclu du rapport principal, avec la raison. Pour vérifier qu'on ne rate rien d'important.
+
+![Alertes Filtrées](screenshots/alertes_filtrees.png)
 
 ---
 
