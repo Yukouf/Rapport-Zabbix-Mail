@@ -42,33 +42,21 @@ Zabbix envoie des **alertes unitaires** par email quand quelque chose ne va pas.
 Le fichier Excel généré contient **3 onglets** :
 
 ### Onglet 1 — Rapport Hebdo
-```
-┌─────────────────────────────────────────────────┐
-│  📊 RAPPORT DE SUPERVISION                      │
-│  Semaine du 03/03 au 09/03/2026 | IMX France    │
-├────────┬────────┬────────┬────────┬──────┬──────┤
-│   32   │   25   │   4    │   26   │  1   │  20  │
-│ Total  │ Dispo  │  Down  │Alertes │Crit. │Filtr.│
-├─────────────────────────────────────────────────┤
-│  🚨 POINTS D'ATTENTION                          │
-│  Switch-01 : Unavailable by ICMP ping            │
-├─────────────────────────────────────────────────┤
-│  🔵 SERVEURS (11)                                │
-│  Date | Hôte | Sévérité | Problème | Durée      │
-│  ...                                             │
-├─────────────────────────────────────────────────┤
-│  🟠 ÉQUIPEMENTS RÉSEAU (8)                       │
-│  ...                                             │
-├─────────────────────────────────────────────────┤
-│  🟢 POSTES DE TRAVAIL (4)                        │
-│  ...                                             │
-└─────────────────────────────────────────────────┘
-```
+
+Métriques du parc en haut (total, disponibles, down, alertes, critiques, filtrées), puis les problèmes classés par catégorie avec codes couleur de sévérité.
+
+**Catégories :**
+- 🔵 **Serveurs** — Disques pleins, agents down, services arrêtés
+- 🟠 **Équipements réseau** — Switches down, interfaces down, ping perdu
+- 🟢 **Postes de travail** — Problèmes sur les machines Windows/Linux
+- 🟣 **Périphériques** — Imprimantes, etc.
 
 ### Onglet 2 — Inventaire Hôtes
+
 Liste complète des machines supervisées avec IP, agent, état, disponibilité et catégorie. Hôtes down surlignés en rouge.
 
 ### Onglet 3 — Alertes filtrées
+
 Tout ce qui a été exclu du rapport principal, avec la raison. Pour vérifier qu'on ne rate rien d'important.
 
 ---
@@ -224,24 +212,6 @@ headers["Authorization"] = f"Bearer {auth_token}"
 
 ---
 
-## 🔒 Accès Zabbix derrière un reverse proxy
-
-Si l'accès par IP renvoie vers un autre service (Grafana par exemple), c'est que le serveur utilise des **virtual hosts Apache**. Il faut résoudre le nom de domaine :
-
-```
-# Windows : C:\Windows\System32\drivers\etc\hosts
-# Linux/Mac : /etc/hosts
-
-192.168.x.x    zabbix.votre-domaine.local
-```
-
-Pour diagnostiquer :
-```bash
-grep -r "ServerName" /etc/apache2/sites-enabled/
-```
-
----
-
 ## 🔥 Dépannage Zabbix Server bloqué
 
 Si le service est en `deactivating (stop-sigterm)` depuis longtemps :
@@ -274,7 +244,6 @@ rapports_zabbix/
 | `Invalid parameter "auth"` | Zabbix 7.x | Utiliser `Authorization: Bearer` dans le header |
 | `Invalid parameter "/sortfield/1"` | Zabbix 7.x | `"sortfield": "eventid"` |
 | Rapport non reçu | Cron | `cat cron.log` pour voir les erreurs |
-| Accès tombe sur Grafana | Virtual hosts | Ajouter l'entrée dans le fichier hosts |
 | Trop de bruit | Filtrage | Ajouter des patterns dans `EXCLUDED_PATTERNS` |
 
 ---
