@@ -166,28 +166,36 @@ EMAIL_TO = [
 
 ## 🏗️ Architecture
 
-```
-                    ┌─────────────────┐
-                    │   Zabbix Server  │
-                    │   (API JSON-RPC) │
-                    └────────┬────────┘
-                             │ HTTPS
-                             ▼
-┌──────────────────────────────────────────────┐
-│              zabbix_rapport_auto.py           │
-│                                              │
-│  1. 🔐 Authentification (Bearer token)        │
-│  2. 📡 Récupération hôtes + problèmes        │
-│  3. 🔍 Filtrage du bruit                      │
-│  4. 📂 Catégorisation (Serveur/Réseau/Poste) │
-│  5. 📊 Génération Excel (openpyxl)           │
-│  6. 📧 Envoi email (SMTP/TLS)               │
-└──────────────────┬───────────────────────────┘
-                   │ SMTP :587
-                   ▼
-            ┌──────────────┐
-            │  Serveur Mail │──── 📧 rapport.xlsx
-            └──────────────┘
+```mermaid
+flowchart TD
+    Z[(🖥️ Zabbix Server\nAPI JSON-RPC)]
+    S[📜 zabbix_rapport_auto.py]
+    M[📧 Serveur SMTP]
+    U1[👤 Admin IT]
+    U2[👤 Responsable]
+
+    Z -->|HTTPS\nBearer Token| S
+
+    subgraph Script ["⚙️ Traitement"]
+        direction TB
+        S1[🔐 Authentification]
+        S2[📡 Récupération hôtes + problèmes]
+        S3[🔍 Filtrage du bruit]
+        S4[📂 Catégorisation\nServeurs / Réseau / Postes]
+        S5[📊 Génération Excel]
+        S1 --> S2 --> S3 --> S4 --> S5
+    end
+
+    S --> Script
+    Script -->|SMTP :587\nSTARTTLS| M
+    M -->|📎 rapport.xlsx| U1
+    M -->|📎 rapport.xlsx| U2
+
+    style Z fill:#d40000,color:#fff,stroke:#b00
+    style Script fill:#f0f4f8,stroke:#1f4e79,stroke-width:2px
+    style M fill:#1565c0,color:#fff,stroke:#0d47a1
+    style U1 fill:#e8f5e9,stroke:#2e7d32
+    style U2 fill:#e8f5e9,stroke:#2e7d32
 ```
 
 ---
