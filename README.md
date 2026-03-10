@@ -31,7 +31,7 @@ Zabbix envoie des **alertes unitaires** par email quand quelque chose ne va pas.
 | 📂 **Catégorisation** | Problèmes regroupés : Serveurs, Réseau, Postes, Périphériques |
 | 📈 **Dashboard exécutif** | Métriques clés en haut : hôtes up/down, alertes critiques, alertes filtrées |
 | 🚨 **Points d'attention** | Alertes Haut/Désastre mises en évidence en rouge |
-| 💡 **Recommandations** | Chaque problème est accompagné d'une explication et des commandes à exécuter |
+| 🤖 **Recommandations IA** | Chaque problème est analysé par une IA locale (Ollama/Gemma3) qui génère une recommandation personnalisée |
 | 🎨 **Design soigné** | Lignes alternées, badges de sévérité, onglets colorés |
 | 📧 **Envoi automatique** | SMTP avec TLS, pièce jointe Excel |
 | ⏰ **Planification cron** | Chaque lundi 7h (personnalisable) |
@@ -44,7 +44,7 @@ Le fichier Excel généré contient **3 onglets** :
 
 ### Onglet 1 — Rapport Hebdo
 
-Métriques du parc en haut (total, disponibles, down, alertes, critiques, filtrées), puis les problèmes classés par catégorie avec codes couleur de sévérité. Chaque problème est accompagné d'une **recommandation** qui explique en français simple ce que ça veut dire et quoi faire (commandes SSH/RDP incluses).
+Métriques du parc en haut (total, disponibles, down, alertes, critiques, filtrées), puis les problèmes classés par catégorie avec codes couleur de sévérité. Chaque problème est analysé par une **IA locale (Ollama/Gemma3)** qui génère une recommandation personnalisée avec les commandes à exécuter.
 
 ![Rapport Hebdo](screenshots/rapport_hebdo.png)
 
@@ -169,22 +169,23 @@ EMAIL_TO = [
 ]
 ```
 
-### Recommandations
+### Recommandations IA (Ollama)
 
-Le script associe automatiquement une recommandation à chaque type de problème. Ajoutez vos propres règles :
+Les recommandations sont générées par une IA locale via [Ollama](https://ollama.com/). Aucune donnée ne sort du serveur.
 
-```python
-RECOMMENDATIONS = [
-    (r"Space is critically low.*used > 90%", "Disque plein. Commandes : df -h puis du -sh /var/log/*"),
-    (r"Zabbix agent is not available", "Agent down. Ping, puis SSH/RDP, puis relancer le service."),
-    (r"Unavailable by ICMP ping", "Equipement injoignable. Vérification physique nécessaire."),
-    (r"WinDefend.*is not running", "SECURITE - Antivirus arrêté ! Relancer via PowerShell."),
-    (r"Toner Empty", "Toner vide. Remplacer la cartouche."),
-    # Ajouter vos règles : (r"pattern regex", "recommandation")
-]
+**Installation :**
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull gemma3:1b
 ```
 
-Chaque règle est un couple `(regex, texte)`. Le premier pattern qui matche le nom du problème est utilisé.
+**Configuration dans le script :**
+```python
+OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
+OLLAMA_MODEL = "gemma3:1b"  # Modèle léger, rapide sur CPU
+```
+
+Le modèle analyse chaque alerte Zabbix et génère une recommandation contextuelle en français avec les commandes à exécuter. Tout tourne en local, compatible RGPD.
 
 ---
 
@@ -193,6 +194,7 @@ Chaque règle est un couple `(regex, texte)`. Le premier pattern qui matche le n
 ```mermaid
 flowchart TD
     Z[(🖥️ Zabbix Server\nAPI JSON-RPC)]
+    O[🤖 Ollama\nGemma3 local]
     S[📜 zabbix_rapport_auto.py]
     M[📧 Serveur SMTP]
     U1[👤 Admin IT]
@@ -206,16 +208,19 @@ flowchart TD
         S2[📡 Récupération hôtes + problèmes]
         S3[🔍 Filtrage du bruit]
         S4[📂 Catégorisation\nServeurs / Réseau / Postes]
-        S5[📊 Génération Excel]
-        S1 --> S2 --> S3 --> S4 --> S5
+        S5[🤖 Recommandations IA]
+        S6[📊 Génération Excel]
+        S1 --> S2 --> S3 --> S4 --> S5 --> S6
     end
 
     S --> Script
+    O -->|localhost:11434| S5
     Script -->|SMTP :587\nSTARTTLS| M
     M -->|📎 rapport.xlsx| U1
     M -->|📎 rapport.xlsx| U2
 
     style Z fill:#d40000,color:#fff,stroke:#b00
+    style O fill:#ff6f00,color:#fff,stroke:#e65100
     style Script fill:#f0f4f8,stroke:#1f4e79,stroke-width:2px
     style M fill:#1565c0,color:#fff,stroke:#0d47a1
     style U1 fill:#e8f5e9,stroke:#2e7d32
