@@ -192,40 +192,32 @@ Le modèle analyse chaque alerte Zabbix et génère une recommandation contextue
 ## 🏗️ Architecture
 
 ```mermaid
-flowchart TD
-    Z[(🖥️ Zabbix Server\nAPI JSON-RPC)]
-    O[🤖 Ollama\nGemma3 local]
-    S[📜 zabbix_rapport_auto.py]
-    M[📧 Serveur SMTP]
-    U1[👤 Admin IT]
-    U2[👤 Responsable]
-
-    Z -->|HTTPS\nBearer Token| S
-
-    subgraph Script ["⚙️ Traitement"]
-        direction TB
-        S1[🔐 Authentification]
-        S2[📡 Récupération hôtes + problèmes]
-        S3[🔍 Filtrage du bruit]
-        S4[📂 Catégorisation\nServeurs / Réseau / Postes]
-        S5[🤖 Recommandations IA]
-        S6[📊 Génération Excel]
-        S1 --> S2 --> S3 --> S4 --> S5 --> S6
+flowchart LR
+    subgraph Serveur ["🖥️ Serveur de supervision"]
+        Z[(Zabbix\nAPI)]
+        O[Ollama\nGemma3]
+        S[Script Python]
+        Z -->|1 - Donnees| S
+        O -->|3 - Recommandations| S
+        S -->|2 - Alertes| O
     end
 
-    S --> Script
-    O -->|localhost:11434| S5
-    Script -->|SMTP :587\nSTARTTLS| M
-    M -->|📎 rapport.xlsx| U1
-    M -->|📎 rapport.xlsx| U2
+    S -->|4 - SMTP| M[📧 Email]
+    M -->|📎 rapport.xlsx| U[👥 Equipe IT]
 
-    style Z fill:#d40000,color:#fff,stroke:#b00
-    style O fill:#ff6f00,color:#fff,stroke:#e65100
-    style Script fill:#f0f4f8,stroke:#1f4e79,stroke-width:2px
-    style M fill:#1565c0,color:#fff,stroke:#0d47a1
-    style U1 fill:#e8f5e9,stroke:#2e7d32
-    style U2 fill:#e8f5e9,stroke:#2e7d32
+    style Z fill:#d40000,color:#fff
+    style O fill:#ff6f00,color:#fff
+    style S fill:#1565c0,color:#fff
+    style M fill:#37474f,color:#fff
+    style U fill:#2e7d32,color:#fff
+    style Serveur fill:#f5f5f5,stroke:#1f4e79,stroke-width:2px
 ```
+
+**Flux :**
+1. Le script récupère les hôtes et problèmes via l'API Zabbix
+2. Chaque alerte est envoyée à Ollama (IA locale) pour analyse
+3. Ollama génère une recommandation personnalisée
+4. Le rapport Excel est envoyé par email via SMTP
 
 ---
 
